@@ -1,0 +1,18 @@
+; Engine configuration file.
+
+config_version=5
+
+[application]
+
+config/name="gimmick scene"
+run/main_scene="res://demo.tscn"
+config/features=PackedStringArray("4.7")
+
+[display]
+
+window/size/viewport_width=1344
+window/size/viewport_height=768
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"

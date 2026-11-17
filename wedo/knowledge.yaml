@@ -1,0 +1,10 @@
+# Who maintains this knowledge (same shape as ponderer wedo/wedo-argue/knowledge.yaml).
+schema: ag.knowledge.v1
+kind: wedo
+maintenance: project
+maintainer: gimmickimg
+note: |
+  Reusable findings written by gimmickimg's runs from their own run reports and
+  experiment notes. Run records stay where they are and are linked as evidence.
+  First written 2026-11-04 by freework/run-021 (improve_workflow p2); the finding
+  format is an experiment and may change.
