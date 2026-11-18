@@ -1,0 +1,88 @@
+# Workflow definition (ag.workflow.v2). Edit here or in the workflow editor.
+
+schema: ag.workflow.v2
+id: partial-animation
+name: Partial animation of a still image
+intent: |-
+  Animate one or more parts of a still image (flowers swaying, water rippling, a leaf tipping) as alpha layers over a
+  clean plate, in Godot. Edge refinement is its own node, not a by-product of the build: a cut-out with an opaque
+  rectangle or a hand-placed feather is not a result of this workflow.
+documentation:
+  policy: custom
+  plan: false
+  reports: false
+  final: true
+repositories:
+  project: {path: ., access: editable}
+nodes:
+  talk:
+    type: talk
+    name: Talk
+    description: |-
+      Understand the request: the image (name, hash), which parts move and how, the target renderer, its dimming/modulate, size.
+    repositories: []
+  analyze:
+    type: do
+    name: Analyze and segment
+    description: |-
+      Name each part to animate and choose SAM2 prompts (box + interior/stem points; negative points where needed) in a spec json. Run `tools/matte.py segment <spec> <out>` and judge masks with `tools/overlay_masks.py`. Parts SAM2 cannot cut cleanly (fuzzy clusters) are left in the still and listed as limits, or sent to a trimap matting trial (not yet tried), not faked with feathered rectangles.
+    repositories: []
+  edge-refine:
+    type: do
+    name: Edge refinement / matting
+    description: |-
+      Explicit node. For each animated group: `tools/matte.py union` then `tools/matte.py refine` = hole/speck clean-up, 1 px erosion, Gaussian feather, pymatting foreground colour estimation -> RGBA cut-out with background colour removed from edge pixels. Method origin: experiments/edge-extraction (SAM2 + erode + feather + estimate_foreground_ml). Record before/after crops of edges (magenta/black/white backgrounds or in-scene). Record the parameters used.
+    repositories: []
+  clean-plate:
+    type: do
+    name: Clean plate
+    description: |-
+      Inpaint the still under the animated parts (`tools/clean_plate.py`, LaMa; mask = union dilated ~4 px) so nothing behind a moving part moves or doubles. Check the plate by eye. Skip only for parts that are themselves the background (water).
+    repositories: []
+  build-layer:
+    type: do
+    name: Build the animated layers
+    description: |-
+      Alpha layers, never opaque rectangles: RGBA cut-out + displacement maps (warp layer) or frames/video with alpha; a scenes/<id>/recipe.json revision whose plate layer is the clean plate.
+    repositories: []
+  verify:
+    type: do
+    name: Verify in the target renderer
+    description: |-
+      Build the delivery (format: docs/delivery.md) and render it in Godot (gl_compatibility and, if wanted, Forward+) at modulate 1.0 AND the consumer's dimming (default 0.55) with `-- --shot=<png> --frames=<n> --dim=<f>`. Required: ratio of dimmed to undimmed pixels equals the dimming inside the animated regions as on the plate (no bright rectangles); edge crops at two sway phases; before/after against the previous revision. Record numbers.
+    repositories: []
+  present:
+    type: do
+    name: Present
+    description: |-
+      Freeze the evidence (edge comparison, dimming comparison, delivery) as a presentation; the person judges edges and colours. Start its server and confirm the link opens.
+    repositories: []
+  review:
+    type: talk
+    name: Review
+    description: |-
+      Show the presentation and ask whether the result is accepted (wfe run ask --presentation). Changes go back into the nodes above.
+    confirms: result
+    repositories: []
+  cleanup:
+    type: do
+    name: Clean up
+    description: |-
+      Stop what this run started for the review and verify that it stopped.
+    repositories: []
+  workflow__talk:
+    type: workflow__talk
+    name: Discuss the workflow
+    description: |-
+      Build the actual run graph from these nodes with wfe run adjust, present it to the requester and ask for agreement; do not claim agreement without an answer.
+    repositories: []
+edges:
+  - {from: talk, to: workflow__talk}
+  - {from: workflow__talk, to: analyze}
+  - {from: analyze, to: edge-refine}
+  - {from: edge-refine, to: clean-plate}
+  - {from: clean-plate, to: build-layer}
+  - {from: build-layer, to: verify}
+  - {from: verify, to: present}
+  - {from: present, to: review}
+  - {from: review, to: cleanup}
